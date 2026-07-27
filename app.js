@@ -1,28 +1,7 @@
 const ADMIN_USER = "didi";
 const ADMIN_PASS = "123456";
 
-const defaultProducts = [
-  { id: 1, name: "Laptop Gamer", category: "Electrónica", price: 1299.99, emoji: "💻", desc: "Laptop de alto rendimiento con RTX 4070" },
-  { id: 2, name: "Mouse Inalámbrico", category: "Electrónica", price: 29.99, emoji: "🖱️", desc: "Mouse ergonómico con DPI ajustable" },
-  { id: 3, name: "Teclado Mecánico", category: "Electrónica", price: 89.99, emoji: "⌨️", desc: "Switches Cherry MX, retroiluminado RGB" },
-  { id: 4, name: "Monitor 27\"", category: "Electrónica", price: 349.99, emoji: "🖥️", desc: "Monitor IPS 144Hz, 1ms respuesta" },
-  { id: 5, name: "Auriculares Pro", category: "Electrónica", price: 149.99, emoji: "🎧", desc: "Cancelación de ruido activa, Bluetooth 5.0" },
-  { id: 6, name: "Camiseta Básica", category: "Ropa", price: 19.99, emoji: "👕", desc: "Algodón 100%, disponible en varios colores" },
-  { id: 7, name: "Jeans Clásicos", category: "Ropa", price: 49.99, emoji: "👖", desc: "Jeans rectos, denim de alta calidad" },
-  { id: 8, name: "Zapatillas Deportivas", category: "Ropa", price: 79.99, emoji: "👟", desc: "Amortiguación Air, ideales para correr" },
-  { id: 9, name: "Chaqueta Impermeable", category: "Ropa", price: 119.99, emoji: "🧥", desc: "Protección contra lluvia, ligera y transpirable" },
-  { id: 10, name: "Reloj Inteligente", category: "Electrónica", price: 199.99, emoji: "⌚", desc: "GPS, monitor de ritmo cardíaco, agua resistente" },
-  { id: 11, name: "Café Orgánico 1kg", category: "Alimentos", price: 24.99, emoji: "☕", desc: "Café de origen único, tueste medio" },
-  { id: 12, name: "Aceite de Oliva Extra Virgen", category: "Alimentos", price: 15.99, emoji: "🫒", desc: "500ml, prensado en frío, sabor suave" },
-  { id: 13, name: "Chocolate Negro 85%", category: "Alimentos", price: 5.99, emoji: "🍫", desc: "Chocolate artesanal, 100g" },
-  { id: 14, name: "Miel Natural 500g", category: "Alimentos", price: 12.99, emoji: "🍯", desc: "Miel pura de flores silvestres" },
-  { id: 15, name: "Mochila Aventura", category: "Hogar", price: 59.99, emoji: "🎒", desc: "40L, resistente al agua, múltiples compartimentos" },
-  { id: 16, name: "Lámpara LED Escritorio", category: "Hogar", price: 34.99, emoji: "💡", desc: "5 niveles de brillo, temperatura ajustable" },
-  { id: 17, name: "Set de Sartenes", category: "Hogar", price: 89.99, emoji: "🍳", desc: "3 piezas antiadherentes, apta lavavajillas" },
-  { id: 18, name: "Almohada Ergonómica", category: "Hogar", price: 44.99, emoji: "🛏️", desc: "Memoria de espuma, cervical, con funda lavable" },
-  { id: 19, name: "Botella Térmica 750ml", category: "Hogar", price: 22.99, emoji: "🫗", desc: "Acero inoxidable, mantiene temperatura 12h" },
-  { id: 20, name: "Libro: Clean Code", category: "Libros", price: 39.99, emoji: "📖", desc: "Guía de buenas prácticas en programación" },
-];
+const defaultProducts = [];
 
 let customProducts = JSON.parse(localStorage.getItem("customProducts")) || [];
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
