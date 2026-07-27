@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo de Productos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-content">
+      <h1>🛒 Catálogo de Productos</h1>
+      <div class="cart-summary" id="cartSummary">
+        <span id="cartCount">0</span> productos seleccionados
+        <button id="btnViewCart" class="btn btn-cart">Ver Pedido</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="filters">
+      <input type="text" id="searchInput" placeholder="Buscar productos..." />
+      <select id="categoryFilter">
+        <option value="all">Todas las categorías</option>
+      </select>
+      <select id="sortSelect">
+        <option value="default">Ordenar por</option>
+        <option value="name-asc">Nombre A-Z</option>
+        <option value="name-desc">Nombre Z-A</option>
+        <option value="price-asc">Precio menor a mayor</option>
+        <option value="price-desc">Precio mayor a menor</option>
+      </select>
+    </section>
+
+    <section class="catalog" id="catalog"></section>
+  </main>
+
+  <!-- Modal del carrito -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Mi Pedido</h2>
+        <button class="btn-close" id="btnCloseModal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <p class="empty-msg">No has seleccionado ningún producto aún.</p>
+      </div>
+      <div class="modal-footer" id="modalFooter">
+        <div class="total-section">
+          <strong>Total:</strong> $<span id="totalPrice">0.00</span>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="btnClearCart">Vaciar Carrito</button>
+          <button class="btn btn-primary" id="btnConfirmOrder">Confirmar Pedido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificación -->
+  <div class="notification" id="notification"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
