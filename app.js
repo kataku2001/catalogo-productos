@@ -82,8 +82,11 @@ function renderCatalog(items) {
 
     const card = document.createElement("div");
     card.className = "product-card" + (isCustom ? " custom-product" : "");
+    const imgContent = product.photo
+      ? `<img src="${product.photo}" alt="${product.name}" style="width:100%;height:100%;object-fit:cover;" />`
+      : product.emoji;
     card.innerHTML = `
-      <div class="product-img">${product.emoji}</div>
+      <div class="product-img">${imgContent}</div>
       <div class="product-info">
         <span class="product-category">${product.category}</span>
         <h3 class="product-name">${product.name}</h3>
@@ -177,9 +180,12 @@ function renderCartModal() {
 
   let html = "";
   cart.forEach(item => {
+    const cartImg = item.photo
+      ? `<img src="${item.photo}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;" />`
+      : `<div class="cart-item-emoji">${item.emoji}</div>`;
     html += `
       <div class="cart-item">
-        <div class="cart-item-emoji">${item.emoji}</div>
+        ${cartImg}
         <div class="cart-item-details">
           <div class="cart-item-name">${item.name}</div>
           <div class="cart-item-price">$${item.price.toFixed(2)} c/u</div>
@@ -248,6 +254,7 @@ function addProduct(e) {
   const category = document.getElementById("prodCategory").value.trim();
   const price = parseFloat(document.getElementById("prodPrice").value);
   const desc = document.getElementById("prodDesc").value.trim() || "Sin descripción";
+  const photoInput = document.getElementById("prodPhoto");
 
   if (!name || !emoji || !category || isNaN(price) || price <= 0) {
     showNotification("Completa todos los campos obligatorios");
@@ -255,16 +262,32 @@ function addProduct(e) {
   }
 
   const maxId = Math.max(0, ...defaultProducts.map(p => p.id), ...customProducts.map(p => p.id));
-  const newProduct = { id: maxId + 1, name, category, price, emoji, desc };
+  const newProduct = { id: maxId + 1, name, category, price, emoji, desc, photo: null };
 
-  customProducts.push(newProduct);
-  saveCustomProducts();
-
-  productForm.reset();
-  loadCategories();
-  renderAdminList();
-  filterAndSort();
-  showNotification(`${emoji} ${name} agregado al catálogo`);
+  if (photoInput.files && photoInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      newProduct.photo = ev.target.result;
+      customProducts.push(newProduct);
+      saveCustomProducts();
+      productForm.reset();
+      document.getElementById("photoPreview").innerHTML = "📷 Seleccionar imagen";
+      loadCategories();
+      renderAdminList();
+      filterAndSort();
+      showNotification(`${emoji} ${name} agregado al catálogo`);
+    };
+    reader.readAsDataURL(photoInput.files[0]);
+  } else {
+    customProducts.push(newProduct);
+    saveCustomProducts();
+    productForm.reset();
+    document.getElementById("photoPreview").innerHTML = "📷 Seleccionar imagen";
+    loadCategories();
+    renderAdminList();
+    filterAndSort();
+    showNotification(`${emoji} ${name} agregado al catálogo`);
+  }
 }
 
 function deleteCustomProduct(productId) {
@@ -292,9 +315,12 @@ function renderAdminList() {
 
   let html = "";
   customProducts.forEach(p => {
+    const thumb = p.photo
+      ? `<img src="${p.photo}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;" />`
+      : `<div class="item-emoji">${p.emoji}</div>`;
     html += `
       <div class="admin-product-item">
-        <div class="item-emoji">${p.emoji}</div>
+        ${thumb}
         <div class="item-info">
           <div class="item-name">${p.name}</div>
           <div class="item-meta">${p.category} · $${p.price.toFixed(2)}</div>
@@ -422,6 +448,20 @@ function bindEvents() {
   });
 
   productForm.addEventListener("submit", addProduct);
+
+  const prodPhoto = document.getElementById("prodPhoto");
+  const photoPreview = document.getElementById("photoPreview");
+  prodPhoto.addEventListener("change", () => {
+    if (prodPhoto.files && prodPhoto.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        photoPreview.innerHTML = `<img src="${ev.target.result}" style="max-height:100%;max-width:100%;border-radius:6px;object-fit:cover;" />`;
+      };
+      reader.readAsDataURL(prodPhoto.files[0]);
+    } else {
+      photoPreview.innerHTML = "📷 Seleccionar imagen";
+    }
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
