@@ -1,4 +1,7 @@
-const products = [
+const ADMIN_USER = "didi";
+const ADMIN_PASS = "123456";
+
+const defaultProducts = [
   { id: 1, name: "Laptop Gamer", category: "Electrónica", price: 1299.99, emoji: "💻", desc: "Laptop de alto rendimiento con RTX 4070" },
   { id: 2, name: "Mouse Inalámbrico", category: "Electrónica", price: 29.99, emoji: "🖱️", desc: "Mouse ergonómico con DPI ajustable" },
   { id: 3, name: "Teclado Mecánico", category: "Electrónica", price: 89.99, emoji: "⌨️", desc: "Switches Cherry MX, retroiluminado RGB" },
@@ -21,7 +24,9 @@ const products = [
   { id: 20, name: "Libro: Clean Code", category: "Libros", price: 39.99, emoji: "📖", desc: "Guía de buenas prácticas en programación" },
 ];
 
-let cart = [];
+let customProducts = JSON.parse(localStorage.getItem("customProducts")) || [];
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+let isLoggedIn = false;
 
 const catalog = document.getElementById("catalog");
 const searchInput = document.getElementById("searchInput");
@@ -37,15 +42,45 @@ const btnConfirmOrder = document.getElementById("btnConfirmOrder");
 const cartCount = document.getElementById("cartCount");
 const totalPrice = document.getElementById("totalPrice");
 const notification = document.getElementById("notification");
+const btnAdmin = document.getElementById("btnAdmin");
+
+const loginOverlay = document.getElementById("loginOverlay");
+const loginForm = document.getElementById("loginForm");
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+const loginError = document.getElementById("loginError");
+const btnCloseLogin = document.getElementById("btnCloseLogin");
+
+const adminOverlay = document.getElementById("adminOverlay");
+const btnCloseAdmin = document.getElementById("btnCloseAdmin");
+const btnLogout = document.getElementById("btnLogout");
+const adminUserLabel = document.getElementById("adminUserLabel");
+const productForm = document.getElementById("productForm");
+const adminProductList = document.getElementById("adminProductList");
+const customCount = document.getElementById("customCount");
+
+function getAllProducts() {
+  return [...defaultProducts, ...customProducts];
+}
+
+function saveCustomProducts() {
+  localStorage.setItem("customProducts", JSON.stringify(customProducts));
+}
+
+function saveCart() {
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
 
 function init() {
   loadCategories();
-  renderCatalog(products);
+  renderCatalog(getAllProducts());
+  renderAdminList();
   bindEvents();
 }
 
 function loadCategories() {
-  const categories = [...new Set(products.map(p => p.category))];
+  categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
+  const categories = [...new Set(getAllProducts().map(p => p.category))];
   categories.sort().forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
@@ -64,9 +99,10 @@ function renderCatalog(items) {
     const cartItem = cart.find(c => c.id === product.id);
     const qty = cartItem ? cartItem.qty : 1;
     const isInCart = !!cartItem;
+    const isCustom = customProducts.some(p => p.id === product.id);
 
     const card = document.createElement("div");
-    card.className = "product-card";
+    card.className = "product-card" + (isCustom ? " custom-product" : "");
     card.innerHTML = `
       <div class="product-img">${product.emoji}</div>
       <div class="product-info">
@@ -106,7 +142,7 @@ function validateQty(productId) {
 }
 
 function addToCart(productId) {
-  const product = products.find(p => p.id === productId);
+  const product = getAllProducts().find(p => p.id === productId);
   const qtyInput = document.getElementById(`qty-${productId}`);
   const qty = parseInt(qtyInput.value) || 1;
 
@@ -119,12 +155,14 @@ function addToCart(productId) {
     showNotification(`${product.name} agregado al carrito`);
   }
 
+  saveCart();
   updateCartUI();
   filterAndSort();
 }
 
 function removeFromCart(productId) {
   cart = cart.filter(c => c.id !== productId);
+  saveCart();
   updateCartUI();
   filterAndSort();
   renderCartModal();
@@ -134,6 +172,7 @@ function updateCartItemQty(productId, delta) {
   const item = cart.find(c => c.id === productId);
   if (!item) return;
   item.qty = Math.max(1, Math.min(99, item.qty + delta));
+  saveCart();
   updateCartUI();
   renderCartModal();
   filterAndSort();
@@ -182,9 +221,8 @@ function renderCartModal() {
 }
 
 function filterAndSort() {
-  let filtered = [...products];
+  let filtered = [...getAllProducts()];
 
-  // Filtro por búsqueda
   const search = searchInput.value.toLowerCase().trim();
   if (search) {
     filtered = filtered.filter(p =>
@@ -194,12 +232,10 @@ function filterAndSort() {
     );
   }
 
-  // Filtro por categoría
   if (categoryFilter.value !== "all") {
     filtered = filtered.filter(p => p.category === categoryFilter.value);
   }
 
-  // Ordenamiento
   switch (sortSelect.value) {
     case "name-asc":
       filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -222,6 +258,74 @@ function showNotification(msg) {
   notification.textContent = msg;
   notification.classList.add("show");
   setTimeout(() => notification.classList.remove("show"), 2000);
+}
+
+// Admin: agregar producto
+function addProduct(e) {
+  e.preventDefault();
+
+  const name = document.getElementById("prodName").value.trim();
+  const emoji = document.getElementById("prodEmoji").value.trim();
+  const category = document.getElementById("prodCategory").value.trim();
+  const price = parseFloat(document.getElementById("prodPrice").value);
+  const desc = document.getElementById("prodDesc").value.trim() || "Sin descripción";
+
+  if (!name || !emoji || !category || isNaN(price) || price <= 0) {
+    showNotification("Completa todos los campos obligatorios");
+    return;
+  }
+
+  const maxId = Math.max(0, ...defaultProducts.map(p => p.id), ...customProducts.map(p => p.id));
+  const newProduct = { id: maxId + 1, name, category, price, emoji, desc };
+
+  customProducts.push(newProduct);
+  saveCustomProducts();
+
+  productForm.reset();
+  loadCategories();
+  renderAdminList();
+  filterAndSort();
+  showNotification(`${emoji} ${name} agregado al catálogo`);
+}
+
+function deleteCustomProduct(productId) {
+  if (!confirm("¿Eliminar este producto del catálogo?")) return;
+  customProducts = customProducts.filter(p => p.id !== productId);
+  saveCustomProducts();
+
+  cart = cart.filter(c => c.id !== productId);
+  saveCart();
+  updateCartUI();
+
+  loadCategories();
+  renderAdminList();
+  filterAndSort();
+  showNotification("Producto eliminado");
+}
+
+function renderAdminList() {
+  customCount.textContent = customProducts.length;
+
+  if (customProducts.length === 0) {
+    adminProductList.innerHTML = '<p class="empty-msg">No has agregado productos aún.</p>';
+    return;
+  }
+
+  let html = "";
+  customProducts.forEach(p => {
+    html += `
+      <div class="admin-product-item">
+        <div class="item-emoji">${p.emoji}</div>
+        <div class="item-info">
+          <div class="item-name">${p.name}</div>
+          <div class="item-meta">${p.category} · $${p.price.toFixed(2)}</div>
+        </div>
+        <button class="btn btn-danger" style="padding:0.3rem 0.6rem;font-size:0.8rem;" onclick="deleteCustomProduct(${p.id})">Eliminar</button>
+      </div>
+    `;
+  });
+
+  adminProductList.innerHTML = html;
 }
 
 function bindEvents() {
@@ -248,6 +352,7 @@ function bindEvents() {
     if (cart.length === 0) return;
     if (confirm("¿Estás seguro de vaciar el carrito?")) {
       cart = [];
+      saveCart();
       updateCartUI();
       renderCartModal();
       filterAndSort();
@@ -273,17 +378,85 @@ function bindEvents() {
     window.open(url, "_blank");
 
     cart = [];
+    saveCart();
     updateCartUI();
     modalOverlay.classList.remove("active");
     filterAndSort();
     showNotification("¡Pedido enviado por WhatsApp!");
   });
 
+  // Login
+  btnAdmin.addEventListener("click", () => {
+    if (isLoggedIn) {
+      openAdmin();
+    } else {
+      loginOverlay.classList.add("active");
+    }
+  });
+
+  btnCloseLogin.addEventListener("click", () => {
+    loginOverlay.classList.remove("active");
+    loginError.classList.remove("visible");
+    loginForm.reset();
+  });
+
+  loginOverlay.addEventListener("click", (e) => {
+    if (e.target === loginOverlay) {
+      loginOverlay.classList.remove("active");
+      loginError.classList.remove("visible");
+      loginForm.reset();
+    }
+  });
+
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const user = loginUser.value.trim();
+    const pass = loginPass.value;
+
+    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+      isLoggedIn = true;
+      loginOverlay.classList.remove("active");
+      loginError.classList.remove("visible");
+      loginForm.reset();
+      openAdmin();
+      showNotification("Bienvenido, " + user);
+    } else {
+      loginError.classList.add("visible");
+    }
+  });
+
+  // Admin
+  btnCloseAdmin.addEventListener("click", () => {
+    adminOverlay.classList.remove("active");
+  });
+
+  adminOverlay.addEventListener("click", (e) => {
+    if (e.target === adminOverlay) {
+      adminOverlay.classList.remove("active");
+    }
+  });
+
+  btnLogout.addEventListener("click", () => {
+    isLoggedIn = false;
+    adminOverlay.classList.remove("active");
+    showNotification("Sesión cerrada");
+  });
+
+  productForm.addEventListener("submit", addProduct);
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       modalOverlay.classList.remove("active");
+      loginOverlay.classList.remove("active");
+      adminOverlay.classList.remove("active");
     }
   });
+}
+
+function openAdmin() {
+  adminUserLabel.textContent = `👤 ${ADMIN_USER}`;
+  renderAdminList();
+  adminOverlay.classList.add("active");
 }
 
 init();
