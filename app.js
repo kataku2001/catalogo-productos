@@ -1,8 +1,6 @@
 const ADMIN_USER = "didi";
 const ADMIN_PASS = "123456";
 
-const defaultProducts = [];
-
 let customProducts = JSON.parse(localStorage.getItem("customProducts")) || [];
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
 let isLoggedIn = false;
@@ -38,10 +36,6 @@ const productForm = document.getElementById("productForm");
 const adminProductList = document.getElementById("adminProductList");
 const customCount = document.getElementById("customCount");
 
-function getAllProducts() {
-  return [...defaultProducts, ...customProducts];
-}
-
 function saveCustomProducts() {
   localStorage.setItem("customProducts", JSON.stringify(customProducts));
 }
@@ -52,14 +46,14 @@ function saveCart() {
 
 function init() {
   loadCategories();
-  renderCatalog(getAllProducts());
+  renderCatalog(customProducts);
   renderAdminList();
   bindEvents();
 }
 
 function loadCategories() {
   categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
-  const categories = [...new Set(getAllProducts().map(p => p.category))];
+  const categories = [...new Set(customProducts.map(p => p.category))];
   categories.sort().forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
@@ -71,17 +65,16 @@ function loadCategories() {
 function renderCatalog(items) {
   catalog.innerHTML = "";
   if (items.length === 0) {
-    catalog.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#999;padding:3rem;">No se encontraron productos.</p>';
+    catalog.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#aaa;padding:3rem;">No hay productos aún. Agrega desde el panel de administración.</p>';
     return;
   }
   items.forEach(product => {
     const cartItem = cart.find(c => c.id === product.id);
     const qty = cartItem ? cartItem.qty : 1;
     const isInCart = !!cartItem;
-    const isCustom = customProducts.some(p => p.id === product.id);
 
     const card = document.createElement("div");
-    card.className = "product-card" + (isCustom ? " custom-product" : "");
+    card.className = "product-card";
     const imgContent = product.photo
       ? `<img src="${product.photo}" alt="${product.name}" style="width:100%;height:100%;object-fit:cover;" />`
       : product.emoji;
@@ -124,7 +117,7 @@ function validateQty(productId) {
 }
 
 function addToCart(productId) {
-  const product = getAllProducts().find(p => p.id === productId);
+  const product = customProducts.find(p => p.id === productId);
   const qtyInput = document.getElementById(`qty-${productId}`);
   const qty = parseInt(qtyInput.value) || 1;
 
@@ -206,7 +199,7 @@ function renderCartModal() {
 }
 
 function filterAndSort() {
-  let filtered = [...getAllProducts()];
+  let filtered = [...customProducts];
 
   const search = searchInput.value.toLowerCase().trim();
   if (search) {
@@ -245,7 +238,6 @@ function showNotification(msg) {
   setTimeout(() => notification.classList.remove("show"), 2000);
 }
 
-// Admin: agregar producto
 function addProduct(e) {
   e.preventDefault();
 
@@ -261,32 +253,31 @@ function addProduct(e) {
     return;
   }
 
-  const maxId = Math.max(0, ...defaultProducts.map(p => p.id), ...customProducts.map(p => p.id));
+  const maxId = customProducts.length > 0 ? Math.max(...customProducts.map(p => p.id)) : 0;
   const newProduct = { id: maxId + 1, name, category, price, emoji, desc, photo: null };
 
-  if (photoInput.files && photoInput.files[0]) {
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      newProduct.photo = ev.target.result;
-      customProducts.push(newProduct);
-      saveCustomProducts();
-      productForm.reset();
-      document.getElementById("photoPreview").innerHTML = "📷 Seleccionar imagen";
-      loadCategories();
-      renderAdminList();
-      filterAndSort();
-      showNotification(`${emoji} ${name} agregado al catálogo`);
-    };
-    reader.readAsDataURL(photoInput.files[0]);
-  } else {
-    customProducts.push(newProduct);
-    saveCustomProducts();
+  function afterSave() {
     productForm.reset();
     document.getElementById("photoPreview").innerHTML = "📷 Seleccionar imagen";
     loadCategories();
     renderAdminList();
     filterAndSort();
     showNotification(`${emoji} ${name} agregado al catálogo`);
+  }
+
+  if (photoInput.files && photoInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      newProduct.photo = reader.result;
+      customProducts.push(newProduct);
+      saveCustomProducts();
+      afterSave();
+    };
+    reader.readAsDataURL(photoInput.files[0]);
+  } else {
+    customProducts.push(newProduct);
+    saveCustomProducts();
+    afterSave();
   }
 }
 
@@ -390,7 +381,6 @@ function bindEvents() {
     showNotification("¡Pedido enviado por WhatsApp!");
   });
 
-  // Login
   btnAdmin.addEventListener("click", () => {
     if (isLoggedIn) {
       openAdmin();
@@ -430,7 +420,6 @@ function bindEvents() {
     }
   });
 
-  // Admin
   btnCloseAdmin.addEventListener("click", () => {
     adminOverlay.classList.remove("active");
   });
