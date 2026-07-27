@@ -1,8 +1,24 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyArbbTZPcp_kofiO8q8A5PlRafvRLGnsFM",
+  authDomain: "catalogo-730f3.firebaseapp.com",
+  projectId: "catalogo-730f3",
+  storageBucket: "catalogo-730f3.firebasestorage.app",
+  messagingSenderId: "785266147642",
+  appId: "1:785266147642:web:9145cbdb0d542ed70bd003",
+  measurementId: "G-MEYHEZFZQT"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 const ADMIN_USER = "didi";
 const ADMIN_PASS = "123456";
 
-let customProducts = JSON.parse(localStorage.getItem("customProducts")) || [];
-let cart = JSON.parse(localStorage.getItem("cart")) || [];
+let customProducts = [];
+let cart = [];
 let isLoggedIn = false;
 
 const catalog = document.getElementById("catalog");
@@ -20,14 +36,12 @@ const cartCount = document.getElementById("cartCount");
 const totalPrice = document.getElementById("totalPrice");
 const notification = document.getElementById("notification");
 const btnAdmin = document.getElementById("btnAdmin");
-
 const loginOverlay = document.getElementById("loginOverlay");
 const loginForm = document.getElementById("loginForm");
 const loginUser = document.getElementById("loginUser");
 const loginPass = document.getElementById("loginPass");
 const loginError = document.getElementById("loginError");
 const btnCloseLogin = document.getElementById("btnCloseLogin");
-
 const adminOverlay = document.getElementById("adminOverlay");
 const btnCloseAdmin = document.getElementById("btnCloseAdmin");
 const btnLogout = document.getElementById("btnLogout");
@@ -36,20 +50,48 @@ const productForm = document.getElementById("productForm");
 const adminProductList = document.getElementById("adminProductList");
 const customCount = document.getElementById("customCount");
 
-function saveCustomProducts() {
-  localStorage.setItem("customProducts", JSON.stringify(customProducts));
+// --- Firestore ---
+
+async function fetchProducts() {
+  const snap = await getDocs(collection(db, "products"));
+  customProducts = snap.docs.map(d => ({ id: parseInt(d.id), ...d.data() }));
 }
 
-function saveCart() {
-  localStorage.setItem("cart", JSON.stringify(cart));
+async function addProductToDB(product) {
+  const docRef = await addDoc(collection(db, "products"), product);
+  return docRef.id;
 }
 
-function init() {
+async function deleteProductFromDB(id) {
+  await deleteDoc(doc(db, "products", String(id)));
+}
+
+async function fetchCart() {
+  const snap = await getDocs(collection(db, "cart"));
+  if (snap.docs.length > 0) {
+    cart = snap.docs[0].data().items || [];
+  } else {
+    cart = [];
+  }
+}
+
+async function saveCartToDB() {
+  const cartRef = doc(db, "cart", "current");
+  await setDoc(cartRef, { items: cart });
+}
+
+// --- Init ---
+
+async function init() {
+  await fetchProducts();
+  await fetchCart();
   loadCategories();
   renderCatalog(customProducts);
   renderAdminList();
   bindEvents();
 }
+
+// --- Categories ---
 
 function loadCategories() {
   categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
@@ -61,6 +103,8 @@ function loadCategories() {
     categoryFilter.appendChild(option);
   });
 }
+
+// --- Render Catalog ---
 
 function renderCatalog(items) {
   catalog.innerHTML = "";
@@ -87,11 +131,11 @@ function renderCatalog(items) {
         <div class="product-price">$${product.price.toFixed(2)}</div>
         <div class="product-actions">
           <div class="quantity-control">
-            <button onclick="changeQty(${product.id}, -1)">−</button>
-            <input type="number" id="qty-${product.id}" value="${qty}" min="1" max="99" onchange="validateQty(${product.id})" />
-            <button onclick="changeQty(${product.id}, 1)">+</button>
+            <button onclick="window.changeQty(${product.id}, -1)">−</button>
+            <input type="number" id="qty-${product.id}" value="${qty}" min="1" max="99" onchange="window.validateQty(${product.id})" />
+            <button onclick="window.changeQty(${product.id}, 1)">+</button>
           </div>
-          <button class="btn-add ${isInCart ? 'added' : ''}" id="btn-add-${product.id}" onclick="addToCart(${product.id})">
+          <button class="btn-add ${isInCart ? 'added' : ''}" id="btn-add-${product.id}" onclick="window.addToCart(${product.id})">
             ${isInCart ? '✓ En carrito' : 'Agregar'}
           </button>
         </div>
@@ -101,22 +145,24 @@ function renderCatalog(items) {
   });
 }
 
-function changeQty(productId, delta) {
+window.changeQty = function(productId, delta) {
   const input = document.getElementById(`qty-${productId}`);
   let val = parseInt(input.value) || 1;
   val = Math.max(1, Math.min(99, val + delta));
   input.value = val;
-}
+};
 
-function validateQty(productId) {
+window.validateQty = function(productId) {
   const input = document.getElementById(`qty-${productId}`);
   let val = parseInt(input.value);
   if (isNaN(val) || val < 1) val = 1;
   if (val > 99) val = 99;
   input.value = val;
-}
+};
 
-function addToCart(productId) {
+// --- Cart ---
+
+window.addToCart = async function(productId) {
   const product = customProducts.find(p => p.id === productId);
   const qtyInput = document.getElementById(`qty-${productId}`);
   const qty = parseInt(qtyInput.value) || 1;
@@ -130,28 +176,28 @@ function addToCart(productId) {
     showNotification(`${product.name} agregado al carrito`);
   }
 
-  saveCart();
+  await saveCartToDB();
   updateCartUI();
   filterAndSort();
-}
+};
 
-function removeFromCart(productId) {
+window.removeFromCart = async function(productId) {
   cart = cart.filter(c => c.id !== productId);
-  saveCart();
+  await saveCartToDB();
   updateCartUI();
   filterAndSort();
   renderCartModal();
-}
+};
 
-function updateCartItemQty(productId, delta) {
+window.updateCartItemQty = async function(productId, delta) {
   const item = cart.find(c => c.id === productId);
   if (!item) return;
   item.qty = Math.max(1, Math.min(99, item.qty + delta));
-  saveCart();
+  await saveCartToDB();
   updateCartUI();
   renderCartModal();
   filterAndSort();
-}
+};
 
 function updateCartUI() {
   const totalItems = cart.reduce((sum, c) => sum + c.qty, 0);
@@ -184,12 +230,12 @@ function renderCartModal() {
           <div class="cart-item-price">$${item.price.toFixed(2)} c/u</div>
         </div>
         <div class="cart-item-qty">
-          <button onclick="updateCartItemQty(${item.id}, -1)">−</button>
+          <button onclick="window.updateCartItemQty(${item.id}, -1)">−</button>
           <span>${item.qty}</span>
-          <button onclick="updateCartItemQty(${item.id}, 1)">+</button>
+          <button onclick="window.updateCartItemQty(${item.id}, 1)">+</button>
         </div>
         <div class="cart-item-subtotal">$${(item.price * item.qty).toFixed(2)}</div>
-        <button class="cart-item-remove" onclick="removeFromCart(${item.id})" title="Eliminar">×</button>
+        <button class="cart-item-remove" onclick="window.removeFromCart(${item.id})" title="Eliminar">×</button>
       </div>
     `;
   });
@@ -197,6 +243,8 @@ function renderCartModal() {
   modalBody.innerHTML = html;
   totalPrice.textContent = getCartTotal().toFixed(2);
 }
+
+// --- Filter & Sort ---
 
 function filterAndSort() {
   let filtered = [...customProducts];
@@ -232,13 +280,17 @@ function filterAndSort() {
   renderCatalog(filtered);
 }
 
+// --- Notifications ---
+
 function showNotification(msg) {
   notification.textContent = msg;
   notification.classList.add("show");
   setTimeout(() => notification.classList.remove("show"), 2000);
 }
 
-function addProduct(e) {
+// --- Admin ---
+
+async function addProduct(e) {
   e.preventDefault();
 
   const name = document.getElementById("prodName").value.trim();
@@ -253,8 +305,7 @@ function addProduct(e) {
     return;
   }
 
-  const maxId = customProducts.length > 0 ? Math.max(...customProducts.map(p => p.id)) : 0;
-  const newProduct = { id: maxId + 1, name, category, price, emoji, desc, photo: null };
+  const newProduct = { name, category, price, emoji, desc, photo: null };
 
   function afterSave() {
     productForm.reset();
@@ -267,27 +318,27 @@ function addProduct(e) {
 
   if (photoInput.files && photoInput.files[0]) {
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       newProduct.photo = reader.result;
-      customProducts.push(newProduct);
-      saveCustomProducts();
+      await addProductToDB(newProduct);
+      await fetchProducts();
       afterSave();
     };
     reader.readAsDataURL(photoInput.files[0]);
   } else {
-    customProducts.push(newProduct);
-    saveCustomProducts();
+    await addProductToDB(newProduct);
+    await fetchProducts();
     afterSave();
   }
 }
 
-function deleteCustomProduct(productId) {
+async function deleteCustomProduct(productId) {
   if (!confirm("¿Eliminar este producto del catálogo?")) return;
-  customProducts = customProducts.filter(p => p.id !== productId);
-  saveCustomProducts();
+  await deleteProductFromDB(productId);
+  await fetchProducts();
 
   cart = cart.filter(c => c.id !== productId);
-  saveCart();
+  await saveCartToDB();
   updateCartUI();
 
   loadCategories();
@@ -295,6 +346,7 @@ function deleteCustomProduct(productId) {
   filterAndSort();
   showNotification("Producto eliminado");
 }
+window.deleteCustomProduct = deleteCustomProduct;
 
 function renderAdminList() {
   customCount.textContent = customProducts.length;
@@ -316,13 +368,15 @@ function renderAdminList() {
           <div class="item-name">${p.name}</div>
           <div class="item-meta">${p.category} · $${p.price.toFixed(2)}</div>
         </div>
-        <button class="btn btn-danger" style="padding:0.3rem 0.6rem;font-size:0.8rem;" onclick="deleteCustomProduct(${p.id})">Eliminar</button>
+        <button class="btn btn-danger" style="padding:0.3rem 0.6rem;font-size:0.8rem;" onclick="window.deleteCustomProduct(${p.id})">Eliminar</button>
       </div>
     `;
   });
 
   adminProductList.innerHTML = html;
 }
+
+// --- Events ---
 
 function bindEvents() {
   searchInput.addEventListener("input", filterAndSort);
@@ -344,11 +398,11 @@ function bindEvents() {
     }
   });
 
-  btnClearCart.addEventListener("click", () => {
+  btnClearCart.addEventListener("click", async () => {
     if (cart.length === 0) return;
     if (confirm("¿Estás seguro de vaciar el carrito?")) {
       cart = [];
-      saveCart();
+      await saveCartToDB();
       updateCartUI();
       renderCartModal();
       filterAndSort();
@@ -356,7 +410,7 @@ function bindEvents() {
     }
   });
 
-  btnConfirmOrder.addEventListener("click", () => {
+  btnConfirmOrder.addEventListener("click", async () => {
     if (cart.length === 0) return;
 
     const lineas = cart.map(c => `${c.emoji} ${c.name} x${c.qty} = $${(c.price * c.qty).toFixed(2)}`);
@@ -374,7 +428,7 @@ function bindEvents() {
     window.open(url, "_blank");
 
     cart = [];
-    saveCart();
+    await saveCartToDB();
     updateCartUI();
     modalOverlay.classList.remove("active");
     filterAndSort();
