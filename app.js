@@ -267,7 +267,7 @@ function bindEvents() {
     mensaje += `\n\n📞 Contactar al cliente para confirmar entrega.`;
 
     const encoded = encodeURIComponent(mensaje);
-    const phone = "53033669";
+    const phone = "54363041";
     const url = `https://wa.me/${phone}?text=${encoded}`;
 
     window.open(url, "_blank");
